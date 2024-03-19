@@ -610,6 +610,7 @@ name = "gosub-rendering"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "log",
  "vello",
  "wgpu",
  "winit",
