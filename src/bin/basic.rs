@@ -1,18 +1,18 @@
 #![allow(unused_variables)]
 
-use std::{num::NonZeroUsize, sync::Arc, panic};
+use std::{num::NonZeroUsize, sync::Arc};
 
+use vello::{
+    self, AaConfig, AaSupport, Renderer, RendererOptions, RenderParams, Scene, util::RenderSurface,
+};
 use vello::kurbo::{Affine, Circle, Rect, Stroke};
 use vello::peniko::Color;
-use vello::{
-    self, util::RenderSurface, AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene,
-};
-use winit::dpi::LogicalSize;
-use winit::event::{Event, WindowEvent};
 use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+use winit::dpi::LogicalSize;
+use winit::event::{Event, WindowEvent};
 
 struct RenderState<'a> {
     surface: RenderSurface<'a>,
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
 
     #[allow(unused_mut)]
-    let mut renderer_cx = vello::util::RenderContext::new().unwrap();
+        let mut renderer_cx = vello::util::RenderContext::new().unwrap();
 
     let mut renderers: Vec<Option<Renderer>> = Vec::new();
 
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         height,
                         antialiasing_method: AaConfig::Msaa16,
                     };
-                    
+
                     renderers[surface.dev_id]
                         .as_mut()
                         .expect("failed to get renderer")
@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             num_init_threads: NonZeroUsize::new(1),
                         },
                     )
-                    .expect("Failed to create renderer")
+                        .expect("Failed to create renderer")
                 });
 
                 Some(render_state)
@@ -171,6 +171,7 @@ fn create_window(
 fn add_shapes_to_scene(scene: &mut Scene) {
     let stroke = Stroke::new(1.0);
     let rect = Rect::new(10.0, 10.0, 100.0, 100.0);
+
     let color = Color::rgb(0.5, 0.5, 1.0);
     scene.stroke(&stroke, Affine::IDENTITY, color, None, &rect);
 

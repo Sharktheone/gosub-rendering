@@ -11,3 +11,11 @@ vello = "0.1.0"
 wgpu = "0.19.3"
 winit = "0.29.15"
 log = "0.4.21"
+anyhow = "1.0.81"
+gosub_shared = { path = "../gosub-engine/crates/gosub_shared" } # TODO: do this with the gosub index
+gosub_html5 = { path = "../gosub-engine/crates/gosub_html5" }
+gosub_styling = { path = "../gosub-engine/crates/gosub_styling" }
+url = "2.5.0"
+ureq = "2.9.6"
+clap = "4.5.3"
+

@@ -1,0 +1,2 @@
+[registries]
+gosub = { index = "https://github.com/gosub-browser/registry.git" }
