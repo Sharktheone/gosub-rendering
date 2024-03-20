@@ -1,15 +1,16 @@
 #![allow(unused_variables)]
 
-use std::{num::NonZeroUsize, sync::Arc};
+use std::{num::NonZeroUsize, sync::Arc, panic};
 
-use vello::{self, util::RenderSurface, AaConfig, AaSupport, Renderer, RendererOptions, Scene, RenderParams};
-use vello::kurbo::{Affine, Circle, Ellipse, Line, Rect, RoundedRect, Stroke};
+use vello::kurbo::{Affine, Circle, Rect, Stroke};
 use vello::peniko::Color;
+use vello::{
+    self, util::RenderSurface, AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene,
+};
 use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::{
     event_loop::{ControlFlow, EventLoop},
-    keyboard::ModifiersState,
     window::{Window, WindowBuilder},
 };
 
@@ -52,30 +53,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 WindowEvent::Resized(size) => {
-                    renderer_cx.resize_surface(
-                        &mut render_state.surface,
-                        size.width,
-                        size.height,
-                    );
-                    
+                    renderer_cx.resize_surface(&mut render_state.surface, size.width, size.height);
+
                     render_state.window.request_redraw();
                 }
 
                 WindowEvent::RedrawRequested => {
                     scene.reset();
                     add_shapes_to_scene(&mut scene);
-                    
+
                     let surface = &render_state.surface;
-                    
+
                     let width = surface.config.width;
                     let height = surface.config.height;
-                    
+
                     let device = &renderer_cx.devices[surface.dev_id];
-                    
+
                     let surface_texture = surface
                         .surface
                         .get_current_texture()
                         .expect("failed to get surface texture");
+
+                    let params = RenderParams {
+                        base_color: Color::BLACK,
+                        width,
+                        height,
+                        antialiasing_method: AaConfig::Msaa16,
+                    };
                     
                     renderers[surface.dev_id]
                         .as_mut()
@@ -85,25 +89,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             &device.queue,
                             &scene,
                             &surface_texture,
-                            &RenderParams {
-                                base_color: Color::BLACK,
-                                width,
-                                height,
-                                antialiasing_method: AaConfig::Msaa16,
-                            },
-                        ).expect("failed to render to surface");
-                    
+                            &params,
+                        )
+                        .expect("failed to render to surface");
+
                     surface_texture.present();
-                    
+
                     device.device.poll(wgpu::Maintain::Poll);
-
-
                 }
                 _ => (),
             }
         }
         Event::Suspended => {
-            println!("Suspended");
             if let Some(render_state) = &render_state {
                 cached_window = Some(render_state.window.clone());
             }
@@ -111,7 +108,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Event::Resumed => {
             let None = render_state else {
-                eprintln!("Resumed without a render state");
                 return;
             };
             let window = cached_window
@@ -128,9 +124,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let surface = futures::executor::block_on(surface).expect("Failed to create surface");
 
             render_state = {
-
                 let render_state = RenderState { window, surface };
-                
+
                 renderers.resize_with(renderer_cx.devices.len(), || None);
                 let id = render_state.surface.dev_id;
                 renderers[id].get_or_insert_with(|| {
@@ -142,15 +137,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             antialiasing_support: AaSupport::all(),
                             num_init_threads: NonZeroUsize::new(1),
                         },
-                    ).expect("Failed to create renderer")
+                    )
+                    .expect("Failed to create renderer")
                 });
-
 
                 Some(render_state)
             };
 
-            println!("Resumed");
             event_loop.set_control_flow(ControlFlow::Poll);
+        }
+        Event::AboutToWait => {
+            if let Some(render_state) = &render_state {
+                render_state.window.request_redraw();
+            }
         }
         _ => (),
     })?;
@@ -165,17 +164,16 @@ fn create_window(
         WindowBuilder::new()
             .with_inner_size(LogicalSize::new(800, 600))
             .with_title("Render Demo")
-            .build(&event_loop)?,
+            .build(event_loop)?,
     ))
 }
-
 
 fn add_shapes_to_scene(scene: &mut Scene) {
     let stroke = Stroke::new(1.0);
     let rect = Rect::new(10.0, 10.0, 100.0, 100.0);
     let color = Color::rgb(0.5, 0.5, 1.0);
     scene.stroke(&stroke, Affine::IDENTITY, color, None, &rect);
-    
+
     let stroke = Stroke::new(10.0);
     let circle = Circle::new((200.0, 200.0), 128.0);
     let color = Color::rgb(1.0, 0.5, 0.5);
