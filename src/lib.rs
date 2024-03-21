@@ -1,3 +1,5 @@
+pub mod text;
+
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use vello::{AaConfig, AaSupport, Renderer, RendererOptions, RenderParams, Scene};
@@ -7,6 +9,11 @@ use winit::dpi::LogicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::EventLoop;
 use winit::window::{Window, WindowBuilder};
+
+use rust_fontconfig::{FcFontCache};
+use once_cell::sync::Lazy;
+
+static FONT_CACHE: Lazy<FcFontCache> = Lazy::new(FcFontCache::build);
 
 pub enum RenderState<'a> {
     Active {
