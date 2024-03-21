@@ -32,9 +32,9 @@ fn main() -> anyhow::Result<()> {
 
     let url = args.get_one::<String>("url").unwrap();
     let mut render_tree = load_html_rendertree(url)?;
-    
+
     calculate_styles(&mut render_tree);
-    
+
     println!("RT: {:#?}", render_tree);
 
     let mut render_scene = |scene: &mut Scene, size: (usize, usize)| render_render_tree(scene, size, &render_tree);
@@ -167,7 +167,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
         parent_pos.1 += renderer.line_height as f64;
 
 
-        renderer.render_text(text, scene, color, Affine::translate(parent_pos), &Stroke::new(1.0), None);
+        renderer.render_text(text, scene, color, Affine::translate(parent_pos), Fill::NonZero, None);
         return parent_pos;
     }
 
@@ -328,11 +328,11 @@ fn calculate_styles_for_node(id: NodeId, render_tree: &mut RenderTree) {
     let Some(node) = render_tree.nodes.get_mut(&id) else {
         return;
     };
-    
+
     node.properties.properties.iter_mut().for_each(|(_, prop)| {
         prop.compute_value();
     });
-    
+
     for child in &node.children.clone() {
         calculate_styles_for_node(*child, render_tree);
     }
