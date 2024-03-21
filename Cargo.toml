@@ -18,4 +18,6 @@ gosub_styling = { path = "../gosub-engine/crates/gosub_styling" }
 url = "2.5.0"
 ureq = "2.9.6"
 clap = "4.5.3"
+rust-fontconfig = "0.1.7"
+once_cell = "1.19.0"
 

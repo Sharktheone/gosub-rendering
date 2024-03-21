@@ -186,7 +186,7 @@ fn create_window(
 ) -> anyhow::Result<Arc<Window>> {
     Ok(Arc::new(
         WindowBuilder::new()
-            .with_inner_size(LogicalSize::new(800, 600))
+            .with_inner_size(LogicalSize::new(1440, 900))
             .with_title("Render Demo")
             .build(event_loop)?,
     ))
