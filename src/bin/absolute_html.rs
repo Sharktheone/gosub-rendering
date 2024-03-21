@@ -4,7 +4,6 @@ use anyhow::bail;
 use gosub_html5::parser::document::Document;
 use gosub_html5::parser::document::DocumentBuilder;
 use gosub_html5::parser::Html5Parser;
-use gosub_rendering::WindowState;
 use gosub_shared::bytes::{CharIterator, Confidence, Encoding};
 use gosub_styling::css_colors::RgbColor;
 use gosub_styling::css_values::CssValue;
@@ -15,6 +14,8 @@ use vello::kurbo::RoundedRect;
 use vello::peniko::Color;
 use vello::peniko::Fill;
 use vello::Scene;
+
+use gosub_rendering::WindowState;
 
 fn main() -> anyhow::Result<()> {
     let args = clap::Command::new("Gosub Rendering Test")
@@ -69,17 +70,16 @@ fn load_html_rendertree(str_url: &str) -> anyhow::Result<RenderTree> {
 }
 
 fn render_render_tree(scene: &mut Scene, size: (usize, usize), render_tree: &RenderTree) {
-    
     let bg = Rect::new(0.0, 0.0, size.0 as f64, size.1 as f64);
     scene.fill(Fill::NonZero, Affine::IDENTITY, Color::BLACK, None, &bg);
-    
-    
-    
+
+
     for (id, _node) in render_tree.nodes.iter() {
-        println!("Node: {:?}", id);
-        let Some(prop) = render_tree.get_property(*id, "position") else {
+        let Some(mut prop) = render_tree.get_property(*id, "position") else {
             continue;
         };
+
+        prop.compute_value();
 
         let CssValue::String(pos) = prop.actual else {
             continue;
@@ -88,98 +88,101 @@ fn render_render_tree(scene: &mut Scene, size: (usize, usize), render_tree: &Ren
         if pos != "absolute" {
             continue;
         }
-        
-        println!("...is absolute!");
 
-        let mut top = f32::MIN;
-        let mut left = f32::MIN;
-        let mut right = f32::MIN;
-        let mut bottom = f32::MIN;
+        let mut top = f64::MIN;
+        let mut left = f64::MIN;
+        let mut right = f64::MIN;
+        let mut bottom = f64::MIN;
 
-        if let Some(prop) = render_tree.get_property(*id, "top") {
-            if let CssValue::Unit(top_val, unit) = prop.actual {
-                if unit == "px" {
-                    top = top_val;
-                }
-            };
-            
-            
-        };
-
-        if let Some(prop) = render_tree.get_property(*id, "left") {
-            if let CssValue::Unit(left_val, unit) = prop.actual {
-                if unit == "px" {
-                    left = left_val;
-                }
-            };
-
-        };
-
-        if let Some(prop) = render_tree.get_property(*id, "right") {
-            if let CssValue::Unit(right_val, unit) = prop.actual {
-                if unit == "px" {
-                    right = right_val;
+        if let Some(mut prop) = render_tree.get_property(*id, "top") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    top = val.trim_end_matches("px").parse().unwrap();
                 }
             };
         };
 
-        if let Some(prop) = render_tree.get_property(*id, "bottom") {
-            if let CssValue::Unit(bottom_val, unit) = prop.actual {
-                if unit != "px" {
-                    bottom = bottom_val;
+        if let Some(mut prop) = render_tree.get_property(*id, "left") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    left = val.trim_end_matches("px").parse().unwrap();
                 }
             };
-
         };
 
-        if top == f32::MIN && bottom != f32::MIN {
-            top = size.1 as f32 - bottom;
+        if let Some(mut prop) = render_tree.get_property(*id, "right") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    right = val.trim_end_matches("px").parse().unwrap();
+                }
+            };
+        };
+
+        if let Some(mut prop) = render_tree.get_property(*id, "bottom") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    bottom = val.trim_end_matches("px").parse().unwrap();
+                }
+            };
+        };
+
+        if top == f64::MIN && bottom != f64::MIN {
+            top = size.1 as f64 - bottom;
         }
 
-        if left == f32::MIN && right != f32::MIN {
-            left = size.0 as f32 - right;
+        if left == f64::MIN && right != f64::MIN {
+            left = size.0 as f64 - right;
         }
 
-        if top == f32::MIN || left == f32::MIN {
+        if top == f64::MIN || left == f64::MIN {
             continue;
         }
 
         let mut width = 0.0;
         let mut height = 0.0;
 
-        if let Some(prop) = render_tree.get_property(*id, "width") {
-            if let CssValue::Unit(width_val, unit) = prop.actual {
-                if unit != "px" {
-                    width = width_val;
+        if let Some(mut prop) = render_tree.get_property(*id, "width") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    width = val.trim_end_matches("px").parse().unwrap();
                 }
             };
         };
 
-        if let Some(prop) = render_tree.get_property(*id, "height") {
-            if let CssValue::Unit(height_val, unit) = prop.actual {
-                if unit != "px" {
-                    height = height_val;
+        if let Some(mut prop) = render_tree.get_property(*id, "height") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    height = val.trim_end_matches("px").parse().unwrap();
                 }
             };
         };
 
         let mut color = RgbColor::new(0, 0, 0, 0);
 
-        if let Some(prop) = render_tree
+        if let Some(mut prop) = render_tree
             .get_property(*id, "background-color") {
-            if let CssValue::Color(clr) = prop.actual {
+            prop.compute_value();
+            if let CssValue::String(clr) = prop.actual {
+                let clr = RgbColor::from(clr.as_str());
                 color = clr;
             }
         }
 
         let mut border_radius = 0.0;
 
-        if let Some(prop) = render_tree.get_property(*id, "border-radius") {
-            if let CssValue::Unit(val, unit) = prop.actual {
-                if unit == "px" {
-                    border_radius = val;
+        if let Some(mut prop) = render_tree.get_property(*id, "border-radius") {
+            prop.compute_value();
+            if let CssValue::String(val) = prop.actual {
+                if val.ends_with("px") {
+                    border_radius = val.trim_end_matches("px").parse().unwrap();
                 }
-            }
+            };
         }
 
         let color = Color::rgba8(color.r, color.g, color.b, color.a);
@@ -187,12 +190,12 @@ fn render_render_tree(scene: &mut Scene, size: (usize, usize), render_tree: &Ren
             continue;
         }
 
-        let x1 = left as f64;
-        let y1 = top as f64;
-        let x2 = (left + width) as f64;
-        let y2 = (top + height) as f64;
+        let x1 = left;
+        let y1 = top;
+        let x2 = left + width;
+        let y2 = top + height;
 
-        let rect = RoundedRect::new(x1, y1, x2, y2, border_radius as f64);
+        let rect = RoundedRect::new(x1, y1, x2, y2, border_radius);
 
         scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &rect);
     }
