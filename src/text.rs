@@ -13,6 +13,7 @@ use crate::FONT_CACHE;
 pub struct TextRenderer {
     font: Font,
     font_size: f32,
+    pub line_height: f32,
 }
 
 impl TextRenderer {
@@ -27,11 +28,31 @@ impl TextRenderer {
         let font_bytes = std::fs::read(&font_path.path).expect("Failed to read font file");
         let font = Font::new(Blob::new(Arc::new(font_bytes)), 0);
 
-        Self { font, font_size }
+        let font_ref = to_font_ref(&font).expect("Failed to get font ref");
+
+        let axes = font_ref.axes();
+        let fs = Size::new(font_size);
+        let variations: &[(&str, f32)] = &[];
+        let var_loc = axes.location(variations.iter().copied());
+
+        let metrics = font_ref.metrics(fs, &var_loc);
+        let line_height = metrics.ascent - metrics.descent + metrics.leading;
+
+        Self { font, font_size, line_height }
     }
 
     pub fn new_with_font(font: Font, font_size: f32) -> Self {
-        Self { font, font_size }
+        let font_ref = to_font_ref(&font).expect("Failed to get font ref");
+
+        let axes = font_ref.axes();
+        let fs = Size::new(font_size);
+        let variations: &[(&str, f32)] = &[];
+        let var_loc = axes.location(variations.iter().copied());
+
+        let metrics = font_ref.metrics(fs, &var_loc);
+        let line_height = metrics.ascent - metrics.descent + metrics.leading;
+        
+        Self { font, font_size, line_height }
     }
 
     pub fn render_text<'a>(
@@ -109,9 +130,9 @@ impl TextRenderer {
         let font_ref = to_font_ref(font).expect("Failed to get font ref");
 
         let brush = brush.into();
+        let char_map = font_ref.charmap();
         let axes = font_ref.axes();
         let font_size = Size::new(self.font_size);
-        let char_map = font_ref.charmap();
         let variations: &[(&str, f32)] = &[];
         let var_loc = axes.location(variations.iter().copied());
         let glyph_metrics = font_ref.glyph_metrics(font_size, &var_loc);

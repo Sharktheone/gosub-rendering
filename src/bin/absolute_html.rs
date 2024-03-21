@@ -31,7 +31,11 @@ fn main() -> anyhow::Result<()> {
         .get_matches();
 
     let url = args.get_one::<String>("url").unwrap();
-    let render_tree = load_html_rendertree(url)?;
+    let mut render_tree = load_html_rendertree(url)?;
+    
+    calculate_styles(&mut render_tree);
+    
+    println!("RT: {:#?}", render_tree);
 
     let mut render_scene = |scene: &mut Scene, size: (usize, usize)| render_render_tree(scene, size, &render_tree);
 
@@ -80,30 +84,33 @@ fn render_render_tree(scene: &mut Scene, size: (usize, usize), render_tree: &Ren
         return
     };
 
+
+    let parent_pos = (0.0, 0.0);
+
     for child in &parent.children {
-        render_with_children(*child, render_tree, scene, size);
+        render_with_children(*child, render_tree, scene, size, parent_pos, NodeId::root());
     }
 }
 
-fn render_with_children(id: NodeId, render_tree: &RenderTree, scene: &mut Scene, size: (usize, usize)) {
+fn render_with_children(id: NodeId, render_tree: &RenderTree, scene: &mut Scene, size: (usize, usize), parent_pos: (f64, f64), parent: NodeId) {
     let Some(node) = render_tree.nodes.get(&id) else {
         return;
     };
-    render_node(id, node, render_tree, scene, size);
+    let parent_pos = render_node(id, node, render_tree, scene, size, parent_pos, parent);
 
     for child in &node.children {
-        render_with_children(*child, render_tree, scene, size);
+        render_with_children(*child, render_tree, scene, size, parent_pos, id);
     }
 }
 
 
 
-fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scene: &mut Scene, size: (usize, usize)) {
+fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scene: &mut Scene, size: (usize, usize), mut parent_pos: (f64, f64), parent_id: NodeId) -> (f64, f64) {
     if let NodeData::Text(text) = &node.data {
         let text = &text.value;
 
         let ff;
-        if let Some(prop) = render_tree.get_property(id, "font-family") {
+        if let Some(prop) = render_tree.get_property(parent_id, "font-family") {
             ff = if let CssValue::String(font_family) = prop.actual {
                 font_family
             } else {
@@ -119,11 +126,15 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
         let fs;
 
 
-        if let Some(mut prop) = render_tree.get_property(id, "font-size") {
-            prop.compute_value();
+        if let Some(mut prop) = render_tree.get_property(parent_id, "font-size") {
+            // prop.compute_value();
 
             fs = if let CssValue::String(fs) = prop.actual {
-                fs.parse::<f32>().unwrap_or(12.0)
+                if fs.ends_with("px") {
+                    fs.trim_end_matches("px").parse::<f32>().unwrap_or(12.0)
+                } else {
+                    12.0
+                }
             } else {
                 12.0
             };
@@ -136,37 +147,42 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
 
         let color;
 
-        if let Some(mut prop) = render_tree.get_property(id, "color") {
-            prop.compute_value();
+        if let Some(mut prop) = render_tree.get_property(parent_id, "color") {
+            // prop.compute_value();
 
             color = if let CssValue::String(color) = prop.actual {
+                println!("color: {}, {text} {parent_id} {id}", color.as_str());
                 RgbColor::from(color.as_str())
             } else {
-                RgbColor::new(0, 0, 0, 255)
+                println!("ggggggg: {:?}, {text} {parent_id} {id}", prop.actual);
+                RgbColor::new(255, 255, 255, 255)
             };
         } else {
-            color = RgbColor::new(0, 0, 0, 255)
+            println!("rrrrrr, {text} {parent_id} {id}");
+            color = RgbColor::new(255, 255, 255, 255)
         };
 
         let color = Color::rgba8(color.r, color.g, color.b, color.a);
 
+        parent_pos.1 += renderer.line_height as f64;
 
-        renderer.render_text(text, scene, color, Affine::IDENTITY, &Stroke::new(1.0), None);
-        return;
+
+        renderer.render_text(text, scene, color, Affine::translate(parent_pos), &Stroke::new(1.0), None);
+        return parent_pos;
     }
 
     let Some(mut prop) = render_tree.get_property(id, "position") else {
-        return;
+        return parent_pos;
     };
 
-    prop.compute_value();
+    // prop.compute_value();
 
     let CssValue::String(pos) = prop.actual else {
-        return;
+        return parent_pos;
     };
 
     if pos != "absolute" {
-        return;
+        return parent_pos;
     }
 
     let mut top = f64::MIN;
@@ -175,7 +191,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     let mut bottom = f64::MIN;
 
     if let Some(mut prop) = render_tree.get_property(id, "top") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             if val.ends_with("px") {
                 top = val.trim_end_matches("px").parse().unwrap();
@@ -184,7 +200,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     };
 
     if let Some(mut prop) = render_tree.get_property(id, "left") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             if val.ends_with("px") {
                 left = val.trim_end_matches("px").parse().unwrap();
@@ -193,7 +209,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     };
 
     if let Some(mut prop) = render_tree.get_property(id, "right") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             if val.ends_with("px") {
                 right = val.trim_end_matches("px").parse().unwrap();
@@ -202,7 +218,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     };
 
     if let Some(mut prop) = render_tree.get_property(id, "bottom") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             if val.ends_with("px") {
                 bottom = val.trim_end_matches("px").parse().unwrap();
@@ -219,14 +235,14 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     }
 
     if top == f64::MIN || left == f64::MIN {
-        return;
+        return parent_pos;
     }
 
     let mut width = f64::MIN;
     let mut height = f64::MIN;
 
     if let Some(mut prop) = render_tree.get_property(id, "width") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             if val.ends_with("px") {
                 width = val.trim_end_matches("px").parse().unwrap();
@@ -235,7 +251,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     };
 
     if let Some(mut prop) = render_tree.get_property(id, "height") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             if val.ends_with("px") {
                 height = val.trim_end_matches("px").parse().unwrap();
@@ -247,7 +263,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
 
     if let Some(mut prop) = render_tree
         .get_property(id, "background-color") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(clr) = prop.actual {
             let clr = RgbColor::from(clr.as_str());
             color = clr;
@@ -257,7 +273,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     let mut border_radius = (0.0, 0.0, 0.0, 0.0);
 
     if let Some(mut prop) = render_tree.get_property(id, "border-radius") {
-        prop.compute_value();
+        // prop.compute_value();
         if let CssValue::String(val) = prop.actual {
             let val = val.split(' ');
             let mut vals = val.map(|v| {
@@ -278,7 +294,7 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
 
     let color = Color::rgba8(color.r, color.g, color.b, color.a);
     if width == 0.0 || height == 0.0 {
-        return;
+        return parent_pos;
     }
 
     let x1 = left;
@@ -299,5 +315,25 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     let rect = RoundedRect::new(x1, y1, x2, y2, border_radius);
 
     scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &rect);
+
+    (x1, y1)
 }
 
+
+fn calculate_styles(render_tree: &mut RenderTree) {
+    calculate_styles_for_node(NodeId::root(), render_tree);
+}
+
+fn calculate_styles_for_node(id: NodeId, render_tree: &mut RenderTree) {
+    let Some(node) = render_tree.nodes.get_mut(&id) else {
+        return;
+    };
+    
+    node.properties.properties.iter_mut().for_each(|(_, prop)| {
+        prop.compute_value();
+    });
+    
+    for child in &node.children.clone() {
+        calculate_styles_for_node(*child, render_tree);
+    }
+}
