@@ -16,7 +16,7 @@ pub enum RenderState<'a> {
     Suspended(Arc<Window>),
 }
 
-pub struct WindowState<'a, FN: FnMut(&mut Scene)> {
+pub struct WindowState<'a, FN: FnMut(&mut Scene, (usize, usize))> {
     event_loop: EventLoop<()>,
     render_state: RenderState<'a>,
     render_scene: &'a mut FN,
@@ -26,7 +26,7 @@ pub struct WindowState<'a, FN: FnMut(&mut Scene)> {
 }
 
 
-impl<'a, FN: FnMut(&mut Scene)> WindowState<'a, FN> {
+impl<'a, FN: FnMut(&mut Scene, (usize, usize))> WindowState<'a, FN> {
     pub fn new(render_scene: &'a mut FN) -> anyhow::Result<Self> {
         let event_loop = EventLoop::new()?;
         let render_state = RenderState::Suspended(create_window(&event_loop)?);
@@ -123,7 +123,9 @@ impl<'a, FN: FnMut(&mut Scene)> WindowState<'a, FN> {
                         
                         WindowEvent::RedrawRequested => {
                             self.scene.reset();
-                            (self.render_scene)(&mut self.scene);
+                            let size = window.inner_size();
+
+                            (self.render_scene)(&mut self.scene, (size.width as usize, size.height as usize));
                             
                             let width = surface.config.width;
                             let height = surface.config.height;
