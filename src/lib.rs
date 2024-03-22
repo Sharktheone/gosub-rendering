@@ -1,4 +1,5 @@
 pub mod text;
+pub mod image;
 
 use std::num::NonZeroUsize;
 use std::sync::Arc;

@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::Mutex;
 
 use anyhow::bail;
 use gosub_html5::node::{NodeData, NodeId};
@@ -9,6 +10,7 @@ use gosub_shared::bytes::{CharIterator, Confidence, Encoding};
 use gosub_styling::css_colors::RgbColor;
 use gosub_styling::css_values::CssValue;
 use gosub_styling::render_tree::{generate_render_tree, RenderTree, RenderTreeNode};
+use lazy_static::lazy_static;
 use url::Url;
 use vello::kurbo::{Affine, Rect, Stroke};
 use vello::kurbo::RoundedRect;
@@ -18,6 +20,12 @@ use vello::Scene;
 
 use gosub_rendering::text::TextRenderer;
 use gosub_rendering::WindowState;
+use gosub_rendering::image::ImageCache;
+
+
+lazy_static! {
+    static ref IMAGE_CACHE: Mutex<ImageCache> = Mutex::new(ImageCache::default());
+}
 
 fn main() -> anyhow::Result<()> {
     let args = clap::Command::new("Gosub Rendering Test")
@@ -151,14 +159,11 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
             // prop.compute_value();
 
             color = if let CssValue::String(color) = prop.actual {
-                println!("color: {}, {text} {parent_id} {id}", color.as_str());
                 RgbColor::from(color.as_str())
             } else {
-                println!("ggggggg: {:?}, {text} {parent_id} {id}", prop.actual);
                 RgbColor::new(255, 255, 255, 255)
             };
         } else {
-            println!("rrrrrr, {text} {parent_id} {id}");
             color = RgbColor::new(255, 255, 255, 255)
         };
 
@@ -170,7 +175,6 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
         renderer.render_text(text, scene, color, Affine::translate(parent_pos), Fill::NonZero, None);
         return parent_pos;
     }
-
     let Some(mut prop) = render_tree.get_property(id, "position") else {
         return parent_pos;
     };
@@ -311,6 +315,31 @@ fn render_node(id: NodeId, node: &RenderTreeNode, render_tree: &RenderTree, scen
     } else {
         top + height
     };
+    
+    if let NodeData::Element(e) = &node.data {
+        if e.name == "img" {
+            let Some(src) = e.attributes.get("src") else {
+                return (x1, y1);
+            };
+
+
+            let Ok(mut img_cache) = IMAGE_CACHE.try_lock() else {
+                return (x1, y1);
+            };
+
+            let Ok(img) = img_cache.from_file(src) else {
+                return (x1, y1);
+            };
+
+            scene.draw_image(&img,
+                             Affine::translate((x1, y1)) * Affine::scale((x2 - x1) / img.width as f64)
+            );
+            
+            return (x1, y1);
+        }
+        
+        // println!("Rendering element: {:#?}", e.);
+    }
 
     let rect = RoundedRect::new(x1, y1, x2, y2, border_radius);
 
