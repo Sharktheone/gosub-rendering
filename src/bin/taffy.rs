@@ -2,16 +2,16 @@ use std::fs;
 use std::sync::Mutex;
 
 use anyhow::bail;
-use gosub_html5::node::{NodeData, NodeId};
+use gosub_html5::node::NodeId;
 use gosub_html5::parser::document::{Document, DocumentBuilder};
 use gosub_html5::parser::Html5Parser;
 use gosub_rendering::layout::generate_taffy_tree;
 use gosub_shared::bytes::{CharIterator, Confidence, Encoding};
 use gosub_styling::css_colors::RgbColor;
 use gosub_styling::css_values::CssValue;
-use gosub_styling::render_tree::{generate_render_tree, RenderTree};
+use gosub_styling::render_tree::{generate_render_tree, RenderNodeData, RenderTree};
 use lazy_static::lazy_static;
-use taffy::{AvailableSpace, NodeId as TaffyID, PrintTree, Size, TaffyTree, TraversePartialTree};
+use taffy::{AvailableSpace, NodeId as TaffyID, Size, TaffyTree, TraversePartialTree};
 use url::Url;
 use vello::kurbo::{Affine, Rect, RoundedRect};
 use vello::peniko::{Color, Fill};
@@ -137,8 +137,8 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
     let pos_y = node_layout.location.y as f64;
 
     let node = render_tree.get_node(gosub_id).unwrap();
-    if let NodeData::Text(text) = &node.data {
-        let text = &text.value;
+    if let RenderNodeData::Text(text) = &node.data {
+        let text = &text.text;
 
         let ff;
         if let Some(prop) = render_tree.get_property(gosub_id, "font-family") {
@@ -220,7 +220,7 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
 
     let color = Color::rgba8(color.r as u8, color.g as u8, color.b as u8, color.a as u8);
 
-    if let NodeData::Element(e) = &node.data {
+    if let RenderNodeData::Element(e) = &node.data {
         if e.name == "img" {
             let Some(src) = e.attributes.get("src") else {
                 return Err(anyhow::anyhow!("No src attribute found for img"));
@@ -240,7 +240,7 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
                              Affine::translate((pos_x, pos_y)) * Affine::scale((node_layout.size.width / img.width as f32) as f64),
             );
 
-            return Err(anyhow::anyhow!("Image node"));
+            return Ok(());
         }
     }
 

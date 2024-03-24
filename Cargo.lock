@@ -1119,6 +1119,8 @@ dependencies = [
  "gosub_shared",
  "lazy_static",
  "regex",
+ "rust-fontconfig",
+ "vello",
 ]
 
 [[package]]

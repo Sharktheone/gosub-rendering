@@ -149,7 +149,6 @@ impl TextRenderer {
             .font_size(self.font_size)
             .transform(transform)
             .glyph_transform(glyph_transform)
-            .normalized_coords(var_loc.coords())
             .brush(brush)
             .draw(style, text.chars().filter_map(|c| {
                 if c == '\n' {
