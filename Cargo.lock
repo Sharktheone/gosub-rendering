@@ -538,6 +538,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "colors-transform"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9226dbc05df4fb986f48d730b001532580883c4c06c5d1c213f4b34c1c157178"
+
+[[package]]
 name = "com"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1029,13 +1035,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3531d702d6c1a3ba92a5fb55a404c7b8c476c8e7ca249951077afcbe4bc807f"
 
 [[package]]
-name = "gosub-rendering"
+name = "gosub-rendering-poc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
  "futures",
  "gosub_html5",
+ "gosub_rendering",
  "gosub_shared",
  "gosub_styling",
  "image",
@@ -1043,6 +1050,7 @@ dependencies = [
  "log",
  "once_cell",
  "rust-fontconfig",
+ "taffy",
  "ureq",
  "url",
  "vello",
@@ -1077,6 +1085,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gosub_rendering"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "gosub_html5",
+ "gosub_styling",
+ "regex",
+ "taffy",
+]
+
+[[package]]
 name = "gosub_shared"
 version = "0.1.0"
 dependencies = [
@@ -1094,6 +1113,7 @@ name = "gosub_styling"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "colors-transform",
  "gosub_css3",
  "gosub_html5",
  "gosub_shared",
@@ -1152,6 +1172,12 @@ checksum = "6bf0b36e6f090b7e1d8a4b49c0cb81c1f8376f72198c65dd3ad9ff3556b8b78c"
 dependencies = [
  "bitflags 2.5.0",
 ]
+
+[[package]]
+name = "grid"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d196ffc1627db18a531359249b2bf8416178d84b729f3cebeb278f285fb9b58c"
 
 [[package]]
 name = "guillotiere"
@@ -2225,9 +2251,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.3"
+version = "1.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b62dbe01f0b06f9d8dc7d49e05a0785f153b00b2c227856282f671e0318c9b15"
+checksum = "c117dbdfde9c8308975b6a18d71f3f385c89461f7b3fb054288ecf2a2058ba4c"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2603,6 +2629,19 @@ dependencies = [
  "pkg-config",
  "toml",
  "version-compare",
+]
+
+[[package]]
+name = "taffy"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ebe07d79b1554c75926c01a8431a365d61dd9661096b9b493cb0adba712445e"
+dependencies = [
+ "arrayvec",
+ "grid",
+ "num-traits",
+ "serde",
+ "slotmap",
 ]
 
 [[package]]
