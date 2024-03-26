@@ -11,7 +11,7 @@ use gosub_styling::css_colors::RgbColor;
 use gosub_styling::css_values::CssValue;
 use gosub_styling::render_tree::{generate_render_tree, RenderNodeData, RenderTree};
 use lazy_static::lazy_static;
-use taffy::{AvailableSpace, NodeId as TaffyID, Size, TaffyTree, TraversePartialTree};
+use taffy::{AvailableSpace, NodeId as TaffyID, PrintTree, Size, TaffyTree, TraversePartialTree};
 use url::Url;
 use vello::kurbo::{Affine, Rect, RoundedRect};
 use vello::peniko::{Color, Fill};
@@ -20,6 +20,7 @@ use vello::Scene;
 use gosub_rendering_poc::image::ImageCache;
 use gosub_rendering_poc::text::TextRenderer;
 use gosub_rendering_poc::WindowState;
+use gosub_rendering_poc::tree::print_tree;
 
 lazy_static! {
     static ref IMAGE_CACHE: Mutex<ImageCache> = Mutex::new(ImageCache::default());
@@ -49,13 +50,12 @@ fn main() -> anyhow::Result<()> {
     }).expect("Failed to compute layout");
 
 
-    taffy_tree.print_tree(root);
+    print_tree(&taffy_tree, root, &render_tree);
 
     // return Ok(());
 
 
     let last_size = (0, 0);
-
     let mut render_scene = |scene: &mut Scene, size: (usize, usize)| {
         if size != last_size {
             let size = Size {
@@ -109,32 +109,32 @@ fn render_render_tree(scene: &mut Scene, size: (usize, usize), render_tree: &Ren
     let bg = Rect::new(0.0, 0.0, size.0 as f64, size.1 as f64);
     scene.fill(Fill::NonZero, Affine::IDENTITY, Color::BLACK, None, &bg);
 
-    render_with_children(root, render_tree, layout, scene);
+    render_with_children(root, render_tree, layout, scene, (0.0,0.0));
 }
 
-fn render_with_children(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>, scene: &mut Scene) {
-    let err = render_node(id, render_tree, layout, scene);
+fn render_with_children(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>, scene: &mut Scene, mut pos: (f64, f64)) {
+    let err = render_node(id, render_tree, layout, scene, &mut pos);
     if let Err(e) = err {
         eprintln!("Error rendering node: {:?}", e);
     }
 
     for child in layout.child_ids(id) {
-        render_with_children(child, render_tree, layout, scene);
+        render_with_children(child, render_tree, layout, scene, pos);
     }
 }
 
 
-fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>, scene: &mut Scene) -> anyhow::Result<()> {
+fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>, scene: &mut Scene, pos: &mut (f64, f64)) -> anyhow::Result<()> {
     let Some(gosub_id) = layout.get_node_context(id) else {
         return Err(anyhow::anyhow!("Node context not found"));
     };
 
     let gosub_id = *gosub_id;
 
-    let node_layout = layout.layout(id)?;
+    let node_layout = layout.get_final_layout(id);
 
-    let pos_x = node_layout.location.x as f64;
-    let pos_y = node_layout.location.y as f64;
+    pos.0 += node_layout.location.x as f64;
+    pos.1 += node_layout.location.y as f64;
 
     let node = render_tree.get_node(gosub_id).unwrap();
     if let RenderNodeData::Text(text) = &node.data {
@@ -193,8 +193,8 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
         let color = Color::rgba8(color.r as u8, color.g as u8, color.b as u8, color.a as u8);
 
         let affine = Affine::translate((
-            pos_x,
-            pos_y,
+            pos.0,
+            pos.1,
         ));
 
         renderer.render_text(text, scene, color, affine, Fill::NonZero, None);
@@ -237,17 +237,17 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
             };
 
             scene.draw_image(&img,
-                             Affine::translate((pos_x, pos_y)) * Affine::scale((node_layout.size.width / img.width as f32) as f64),
+                             Affine::translate((pos.0, pos.1)) * Affine::scale((node_layout.size.width / img.width as f32) as f64),
             );
 
             return Ok(());
         }
     }
 
-    let x2 = node_layout.size.width as f64 + pos_x;
-    let y2 = node_layout.size.height as f64 + pos_y;
+    let x2 = node_layout.size.width as f64 + pos.0;
+    let y2 = node_layout.size.height as f64 + pos.1;
 
-    let rect = RoundedRect::new(pos_x, pos_y, x2, y2, border_radius);
+    let rect = RoundedRect::new(pos.0, pos.1, x2, y2, border_radius);
 
     scene.fill(Fill::NonZero, Affine::IDENTITY, color, None, &rect);
 
