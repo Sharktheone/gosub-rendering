@@ -35,7 +35,7 @@ pub fn print_tree(tree: &TaffyTree<GosubId>, root: NodeId, gosub_tree: &RenderTr
         }
 
         println!(
-            "{lines}{fork} {display} [x: {x:<4} y: {y:<4} width: {width:<4} height: {height:<4}] ({key:?}) display: {display} |{node_render}|",
+            "{lines}{fork} {display} [x: {x:<4} y: {y:<4} width: {width:<4} height: {height:<4}] ({key:?}) |{node_render}|",
             lines = lines_string,
             fork = fork_string,
             display = display,

@@ -138,17 +138,23 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
 
     let node = render_tree.get_node(gosub_id).unwrap();
     if let RenderNodeData::Text(text) = &node.data {
-        let text = &text.text;
+        let Some(parent) = layout.parent(id) else {
+            return Ok(())
+        };
+
+        let gosub_id = *layout.get_node_context(parent).unwrap();
 
         let ff;
-        if let Some(prop) = render_tree.get_property(gosub_id, "font-family") {
+        
+        if let Some(mut prop) = render_tree.get_property(gosub_id, "font-family") {
+            prop.compute_value();
             ff = if let CssValue::String(font_family) = prop.actual {
                 font_family
             } else {
-                String::from("Arial")
+                String::from("D050000L")
             };
         } else {
-            ff = String::from("Arial")
+            ff = String::from("C059")
         };
 
         let ff = ff.trim().split(',').map(|ff| ff.to_string()).collect::<Vec<String>>();
@@ -158,8 +164,7 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
 
 
         if let Some(mut prop) = render_tree.get_property(gosub_id, "font-size") {
-            // prop.compute_value();
-
+            prop.compute_value();
             fs = if let CssValue::String(fs) = prop.actual {
                 if fs.ends_with("px") {
                     fs.trim_end_matches("px").parse::<f32>().unwrap_or(12.0)
@@ -179,15 +184,15 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
         let color;
 
         if let Some(mut prop) = render_tree.get_property(gosub_id, "color") {
-            // prop.compute_value();
+            prop.compute_value();
 
             color = if let CssValue::String(color) = prop.actual {
                 RgbColor::from(color.as_str())
             } else {
-                RgbColor::new(255.0, 255.0, 255.0, 255.0)
+                RgbColor::new(255.0, 0.0, 0.0, 255.0)
             };
         } else {
-            color = RgbColor::new(255.0, 255.0, 255.0, 255.0)
+            color = RgbColor::new(0.0, 255.0, 0.0, 255.0)
         };
 
         let color = Color::rgba8(color.r as u8, color.g as u8, color.b as u8, color.a as u8);
@@ -197,7 +202,7 @@ fn render_node(id: TaffyID, render_tree: &RenderTree, layout: &TaffyTree<NodeId>
             pos.1,
         ));
 
-        renderer.render_text(text, scene, color, affine, Fill::NonZero, None);
+        renderer.show_text(text, scene, color, affine, Fill::NonZero, None);
         return Ok(());
     }
 

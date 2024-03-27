@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use gosub_styling::prerender_text::PrerenderText;
 use rust_fontconfig::FcPattern;
 use vello::glyph::Glyph;
 use vello::kurbo::Affine;
@@ -18,9 +19,11 @@ pub struct TextRenderer {
 
 impl TextRenderer {
     pub fn new(font_family: Vec<String>, font_size: f32) -> Self {
+        let cache = &*FONT_CACHE;
+
         let font_path = font_family.into_iter().find_map(|family| {
-            FONT_CACHE.query(&FcPattern {
-                name: Some(family),
+            cache.query(&FcPattern {
+                family: Some(family),
                 ..Default::default()
             })
         }).expect("No font found");
@@ -51,7 +54,7 @@ impl TextRenderer {
 
         let metrics = font_ref.metrics(fs, &var_loc);
         let line_height = metrics.ascent - metrics.descent + metrics.leading;
-        
+
         Self { font, font_size, line_height }
     }
 
@@ -168,6 +171,26 @@ impl TextRenderer {
                     y: pen_y,
                 })
             }));
+    }
+
+    pub fn show_text<'a>(
+        &self,
+        prerendered: &PrerenderText,
+        scene: &'a mut Scene,
+        brush: impl Into<BrushRef<'a>>,
+        transform: Affine,
+        style: impl Into<StyleRef<'a>>,
+        glyph_transform: Option<Affine>,
+    ) {
+        let brush = brush.into();
+        
+        scene
+            .draw_glyphs(&self.font)
+            .font_size(self.font_size)
+            .transform(transform)
+            .glyph_transform(glyph_transform)
+            .brush(brush)
+            .draw(style, prerendered.glyphs.clone().into_iter())
     }
 }
 
